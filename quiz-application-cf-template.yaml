@@ -1,0 +1,1951 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "API Gateway CloudFormation Template"
+
+Resources:
+  # Define the Rest API
+  QzApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: "qz_API"
+      Description: "API Gateway for qz_API"
+
+  # Deployment and Stage
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref QzApi
+      StageName: "prod"
+    DependsOn: 
+      - AnswerPostMethod
+      - AnswerOptionsMethod
+      - QuizGetMethod
+      - QuizOptionsMethod
+      - QuizGeneratorPostMethod
+      - QuizGeneratorOptionsMethod
+      - QuizPostMethod
+      - QuizOptionsRootMethod
+
+  # Define /answer Resource
+  AnswerResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QzApi.RootResourceId
+      PathPart: "answer"
+      RestApiId: !Ref QzApi
+
+  # POST /answer method
+  AnswerPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref AnswerResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS
+        Uri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:sqs:path/${AnswersQueue.QueueName}'
+        Credentials: !GetAtt ApiGatewaySqsIntegrationRole.Arn
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        RequestParameters:
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        RequestTemplates:
+          application/json: |
+            Action=SendMessage&MessageBody=$input.body
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+          ResponseModels:
+            application/json: "Empty"
+
+  # OPTIONS /answer method for CORS
+  AnswerOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref AnswerResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+        RequestTemplates:
+          application/json: |
+            {
+            "statusCode": 200
+            }
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+          ResponseModels:
+            application/json: "Empty"
+
+  # Define quiz/ resource
+  QuizIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QzApi.RootResourceId
+      PathPart: "quiz"
+      RestApiId: !Ref QzApi
+
+  # POST /quiz method
+  QuizPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref QuizIdResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS
+        Uri: !Sub
+          - arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt SaveQuizFunction.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: "Empty"
+
+  # OPTIONS /quiz method for CORS
+  QuizOptionsRootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref QuizIdResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+        RequestTemplates:
+          application/json: |
+            {
+            "statusCode": 200
+            }
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+          ResponseModels:
+            application/json: "Empty"
+
+  # /quiz/{id} Resource
+  QuizResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref QuizIdResource
+      PathPart: "{id}"
+      RestApiId: !Ref QzApi
+
+  # GET /quiz/{id} method
+  QuizGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref QuizResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.path.id: true
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS
+        Uri: !Sub
+          - arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt GetQuizQuestionsFunction.Arn
+        RequestTemplates:
+          application/json: |
+            {
+              "quiz_id": "$input.params('id')"
+            }
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+          ResponseModels:
+            application/json: "Empty"
+
+  # OPTIONS /quiz/{id} method for CORS
+  QuizOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref QuizResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+        RequestTemplates:
+          application/json: |
+            {
+            "statusCode": 200
+            }
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+          ResponseModels:
+            application/json: "Empty"
+
+  # /quiz/generator Resource
+  QuizGeneratorResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref QuizIdResource
+      PathPart: "generator"
+      RestApiId: !Ref QzApi
+
+  # POST /quiz/generator method
+  QuizGeneratorPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref QuizGeneratorResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS
+        Uri: !Sub
+          - arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt GenerateQuizFunction.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: "Empty"
+
+  # OPTIONS /quiz/generator method for CORS
+  QuizGeneratorOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref QzApi
+      ResourceId: !Ref QuizGeneratorResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+        RequestTemplates:
+          application/json: |
+            {
+            "statusCode": 200
+            }
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+          ResponseModels:
+            application/json: "Empty"
+
+  # Lambda Generate Quiz Function (1)
+  GenerateQuizFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-generate-quiz
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole1.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          def handler(event, context):
+              
+              # Event Parse
+              difficulty = event['quiz_difficulty']
+              
+              question_count = event['question_count']
+              
+              quiz_domain = event['quiz_domain']
+              
+              # Create a Bedrock Runtime client
+              bedrock_runtime = boto3.client('bedrock-runtime', region_name='us-east-1')
+              
+              # Set the model ID for Claude 3 Sonnet
+              
+              model_id = 'anthropic.claude-3-sonnet-20240229-v1:0'
+              
+                # Define the prompt (you can pass this as an input to the Lambda function)
+              prompt = f"""You are a creative person and will create a quiz for the topic: {quiz_domain}. This quiz will have {question_count} questions. 
+              Each question has 4 alternatives, and only one is correct. Please generate such quiz, and return the response in the following format:
+
+              {{
+                  "qz_info": {{
+                      "qz_name": "Quiz Name",
+                      "qz_description": "Quiz Description"
+                  }},
+                  "qz_questions": [
+                      {{
+                          "qe_alternatives": [
+                              "Alt1",
+                              "Alt2",
+                              "Alt3",
+                              "Alt4"
+                          ],
+                          "qe_answer": 0,
+                          "qe_picture": "",
+                          "qe_question": "What is AWS Object-Storage service name?"
+                      }}
+                  ]
+              }}
+
+              Instructions: 
+                  1) The field named "qe_answer" is the zero-based position index from the "qe_alternatives" field item that is the correct answer from the question. 
+                  2) Create questions with the difficulty level: {difficulty}.
+                  3) Validate your questions against public documentation. 
+                  4) Return only the JSON
+                  
+
+              Constraints: 
+                  1) Do not guess the answer; 
+                  2) Do not reason or explain your answer.
+                  3) Do not put the same index of the correct answer in two consecutive questions. """
+              
+              # Format the request payload
+              request_payload = {
+                  "anthropic_version": "bedrock-2023-05-31",
+                  "max_tokens": 2048,  # Adjust this for mid to long output
+                  "temperature": 0.7,
+                  "messages": [
+                      {
+                          "role": "user",
+                          "content": [{"type": "text", "text": prompt}]
+                      }
+                  ]
+              }
+              
+              try:
+                  # Invoke the model
+                  response = bedrock_runtime.invoke_model(
+                      modelId=model_id,
+                      body=json.dumps(request_payload)
+                  )
+                  
+                  # Parse the response
+                  response_body = json.loads(response['body'].read())
+                  generated_text = response_body['content'][0]['text']
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({'generated_text': generated_text})
+                  }
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+
+  # Lambda Execution Role
+  LambdaExecutionRole1:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: lambda-qz-role-1
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: qz-policy-1
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - bedrock:InvokeModel
+                    - bedrock:InvokeModelWithResponseStream
+                  Resource: '*'
+          - PolicyName: LambdaLogging
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: '*'
+
+  # Grant permissions to API Gateway to call Lambda / SQS
+  LambdaInvokePermission1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GenerateQuizFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+  
+  LambdaInvokePermission2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SaveQuizFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  LambdaInvokePermission3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetQuizQuestionsFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+  
+  ApiGatewaySqsIntegrationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "ApiGatewaySqsIntegrationRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: ApiGatewaySqsSendMessagePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: '*'
+
+  # Lambda Save Quiz Function (2)
+  SaveQuizFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-save-quiz
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole2.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import boto3
+          import random
+
+          dynamodb = boto3.resource('dynamodb')
+          table = dynamodb.Table('quiz_data')
+
+          def handler(event, context):
+              
+              quiz_data = event
+                  
+              quiz_id = insert_quiz(quiz_data)
+              
+              body = { "quiz_id": quiz_id }
+
+              return {
+                  'statusCode': 200,
+                  'body': body
+              }
+
+
+          def insert_quiz(quiz_data):
+
+              # Generate a unique quiz ID
+              quiz_id = generate_qz_id()
+              
+              while check_qz_id_exists(quiz_id):
+                  quiz_id = generate_qz_id()
+              
+              # Add the qz_id to the quiz_data
+              quiz_data['quiz_id'] = quiz_id
+              
+              # Insert the data into DynamoDB
+              table.put_item(Item=quiz_data)
+              
+              return quiz_id
+              
+          def generate_qz_id():
+
+              # Generate a unique 6-digit quiz ID
+              return str(random.randint(100000, 999999))
+              
+          def check_qz_id_exists(quiz_id):
+
+              # Check if the qz_id already exists in the DynamoDB table
+              response = table.get_item(Key={'quiz_id': quiz_id})
+              return 'Item' in response  # Returns True if the item exists, False otherwise
+ 
+  # Lambda Execution Role
+  LambdaExecutionRole2:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lambda-qz-role-2-3
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: qz-policy-2-3
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/quiz_data"
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Lambda Get Quiz Questions Function (3)
+  GetQuizQuestionsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-get-quiz-questions
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole2.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from boto3.dynamodb.conditions import Key
+          from decimal import Decimal
+
+          dynamodb = boto3.resource('dynamodb')
+          table_name = 'quiz_data' 
+          table = dynamodb.Table(table_name)
+
+          def handler(event, context):
+              
+              try:
+                  # Extract quiz_id from the API Gateway event
+                  quiz_id = event['quiz_id']
+
+                  # Query the DynamoDB table for the quiz details
+                  response = table.query(
+                      KeyConditionExpression=Key('quiz_id').eq(quiz_id)
+                  )
+                  
+                  if 'Items' in response and len(response['Items']) > 0:
+                      
+                      quiz_data = response['Items'][0]
+                  
+                      questions = quiz_data.get('qz_questions', 'No questions found')
+                      
+                      serialized_questions = json.dumps(questions, default=decimal_default)
+
+                      # Return the questions as JSON response
+                      return {
+                          'statusCode': 200,
+                          'body': json.dumps({
+                              'quiz_id': quiz_id,
+                              'questions': serialized_questions
+                          })
+                      }
+                  else:
+                      return {
+                          'statusCode': 404,
+                          'body': json.dumps({
+                              'message': 'Quiz not found'
+                          })
+                      }
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({
+                          'error': str(e)
+                      })
+                  }
+
+          def decimal_default(obj):
+              if isinstance(obj, Decimal):
+                  return int(obj) if obj % 1 == 0 else float(obj)
+              raise TypeError
+
+  # Lambda Add Player (4)
+  AddPlayerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-add-player
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole4.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import boto3
+          from botocore.exceptions import ClientError
+
+          # Initialize a DynamoDB client
+          dynamodb = boto3.resource('dynamodb')
+
+          # DynamoDB table name
+          TABLE_NAME = 'quiz_players'
+
+          def handler(event, context):
+              
+              # Extract player_name and quiz_id from the event's variables
+              player_name = event['variables'].get('player_name')
+              quiz_id = event['variables'].get('quiz_id')
+              
+              add_player_to_quiz(quiz_id,player_name)
+              
+              added_player = { "quiz_id": quiz_id, "player_name": player_name, "player_id": "" }
+              
+              return added_player
+
+
+          # Function to add a player to a quiz in DynamoDB
+          def add_player_to_quiz(quiz_id, player_name):
+              # Reference the DynamoDB table
+              table = dynamodb.Table(TABLE_NAME)
+
+              try:
+                  # Update or create the item in DynamoDB
+                  response = table.update_item(
+                      Key={
+                          'quiz_id': quiz_id  # Partition key
+                      },
+                      UpdateExpression="""
+                          SET player_count = if_not_exists(player_count, :start) + :incr,
+                              player_names = list_append(if_not_exists(player_names, :empty_list), :new_player)
+                      """,
+                      ExpressionAttributeValues={
+                          ':incr': 1,  # Increment player count by 1
+                          ':start': 0,  # Initial count if not exists
+                          ':new_player': [player_name],  # Append the new player name
+                          ':empty_list': []  # Start with an empty list if player_names doesn't exist
+                      },
+                      ReturnValues="UPDATED_NEW"
+                  )
+
+                  return {
+                      'statusCode': 200,
+                      'body': f"Player '{player_name}' added to quiz '{quiz_id}'.",
+                      'updatedAttributes': response['Attributes']
+                  }
+
+              except ClientError as e:
+                  # Handle potential errors
+                  return {
+                      'statusCode': 500,
+                      'body': f"Error adding player: {e.response['Error']['Message']}"
+                  }
+
+  # Lambda Execution Role
+  LambdaExecutionRole4:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lambda-qz-role-4
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: qz-policy-4
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/quiz_players"
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Lambda Publish Message (5)
+  PublishMessageFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-publish-message
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole2.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          def handler(event, context):
+    
+            # Extract quiz_id and message from the event's variables
+            quiz_id = event['variables'].get('quiz_id')
+            message = event['variables'].get('message')
+
+            # Validate that both quiz_id and message exist and are not empty
+            if not quiz_id:
+                quiz_id = ''
+
+            if not message:
+                message = ''
+            
+            
+            quiz_message = {
+                "quiz_id": quiz_id,
+                "message": message  # JSON object for the message
+            }
+          
+            return quiz_message
+
+  # Lambda Get Players By Quiz (6)
+  GetPlayersByQuizFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-get-players-by-quiz
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole4.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from botocore.exceptions import ClientError
+
+          # Initialize a DynamoDB client
+          dynamodb = boto3.resource('dynamodb')
+
+          # DynamoDB table name
+          TABLE_NAME = 'quiz_players'
+
+          def handler(event, context):
+              
+              quiz_id = event['variables'].get('quiz_id')
+              
+              # Call the get_player_count function to get the player count
+              result = get_player_count(quiz_id)
+
+              # Check if the response contains statusCode 200 (success)
+              if result.get('statusCode') == 200:
+                  # Return the player_count as a simple integer
+                  return result['body']['player_count']
+              else:
+                  # Return -1 in case of any errors
+                  return -1
+
+          def get_player_count(quiz_id):
+
+              if not quiz_id:
+                  return {
+                      'statusCode': 400,
+                      'body': 'quiz_id is required'
+                  }
+
+              # Reference the DynamoDB table
+              table = dynamodb.Table(TABLE_NAME)
+
+              try:
+                  # Retrieve the item based on quiz_id (partition key)
+                  response = table.get_item(
+                      Key={'quiz_id': quiz_id}
+                  )
+
+                  # Check if the item exists
+                  if 'Item' not in response:
+                      return {
+                          'statusCode': 404,
+                          'body': f'Quiz with ID {quiz_id} not found'
+                      }
+
+                  # Extract the player_count from the item
+                  player_count = response['Item'].get('player_count', 0)
+
+                  return {
+                      'statusCode': 200,
+                      'body': {
+                          'quiz_id': quiz_id,
+                          'player_count': player_count
+                      }
+                  }
+
+              except ClientError as e:
+                  # Handle potential errors, such as access or network issues
+                  return {
+                      'statusCode': 500,
+                      'body': f"Error retrieving player count: {e.response['Error']['Message']}"
+                  }
+
+  # Lambda On Message Subscription (7)
+  OnMessageFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-on-message
+      Runtime: python3.12
+      Timeout: 240
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole4.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import json
+
+          def handler(event, context):
+              
+              message = { 
+                  "quiz_id" : '3',
+                  "message_action": "quiz_subscribed",
+                  "message": {}
+              }
+              
+              return message
+
+  # Lambda Handle Answers (8)
+  HandleAnswersFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-handle-answers
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole5.Arn
+      ReservedConcurrentExecutions: 110
+      Code:
+        ZipFile: |
+          import json
+          from datetime import datetime
+          import boto3
+          from botocore.exceptions import ClientError
+
+          dynamodb = boto3.resource('dynamodb')
+          sns = boto3.client('sns') 
+          ssm = boto3.client('ssm')
+
+          # Retrieve the SNS topic ARN from Parameter Store
+          def get_sns_topic_arn():
+              try:
+                  response = ssm.get_parameter(Name='/CalculateScore/TopicArn', WithDecryption=True)
+                  return response['Parameter']['Value']
+              except ClientError as e:
+                  print(f"Error retrieving parameter: {e}")
+                  return None
+
+          table = dynamodb.Table('quiz_answers') 
+          table_players = dynamodb.Table('quiz_players')
+          sns_topic_arn = get_sns_topic_arn()
+
+          def handler(event, context):
+              
+              try:
+                  # Extract the SQS message
+                  for record in event['Records']:
+                      
+                      body = record['body']
+                      message = json.loads(body)
+                      
+                      # Extract fields from the message
+                      quiz_id = message.get('quiz_id')
+                      player_name = message.get('player_name')
+                      question_number = message.get('question_number')
+                      question_answer = message.get('player_answer')
+                      timestamp = convert_timestamp_to_iso(message.get('timestamp'))
+                      
+                      # Create an answer object (X)
+                      answer = {
+                          'player_name': player_name,
+                          'question_answer': question_answer,
+                          'timestamp': timestamp
+                      }
+
+                      # Fetch existing answers for quiz_id and question_number
+                      response = table.get_item(
+                          Key={
+                              'quiz_id': quiz_id,
+                              'question_number': question_number
+                          }
+                      )
+
+                      # Initialize the answers list
+                      answers_list = response.get('Item', {}).get('answers', [])
+
+                      # Initialize an empty list to store updated answers
+                      updated_answers = []
+                      
+                      # Iterate through each answer in the existing answers list
+                      for ans in answers_list:
+                          # Check if the player name of the current answer is not equal to the player submitting a new answer
+                          if ans['player_name'] != player_name:
+                              # If it doesn't match, add it to the updated answers list
+                              updated_answers.append(ans)
+
+                      # Append the new answer
+                      updated_answers.append(answer)
+
+                      # Calculate the answer count
+                      answer_count = len(updated_answers)
+
+                      # Update or insert the DynamoDB table
+                      table.put_item(
+                          Item={
+                              'quiz_id': quiz_id,
+                              'question_number': question_number,
+                              'answers': updated_answers,
+                              'answered_count': answer_count  # Update the answered count
+                          }
+                      )
+                      
+                      # Query the quiz_players table to get the count of players
+                      player_response = table_players.get_item(
+                          Key={
+                              'quiz_id': quiz_id
+                          }
+                      )
+                      
+                      if 'Item' in player_response:
+                          current_players_count = player_response['Item'].get('player_count')
+                          
+                          # Check if the answered_count matches the number of players
+                          if answer_count == current_players_count:
+                              # Send a notification to the SNS topic to calculate score
+                              sns.publish(
+                                  TopicArn=sns_topic_arn,
+                                  Message=json.dumps({
+                                      'quiz_id': quiz_id,
+                                      'question_number': question_number
+                                  })
+                              )
+                  
+              except ClientError as e:
+                  print(f"Error updating quiz_answers table: {e}")
+
+          def convert_timestamp_to_iso(timestamp):
+              return datetime.utcfromtimestamp(int(timestamp)).isoformat()
+
+  # Lambda Execution Role
+  LambdaExecutionRole5:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lambda-qz-role-5
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: qz-policy-5
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
+        - PolicyName: sns-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:      
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: '*'
+        - PolicyName: param-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*" 
+        - PolicyName: sqs-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: '*'
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Lambda Calculate Score (9)
+  CalculateScoreFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-calculate-score
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole5.Arn
+      ReservedConcurrentExecutions: 110
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from botocore.exceptions import ClientError
+
+
+          dynamodb = boto3.resource('dynamodb')
+          sns = boto3.client('sns') 
+          ssm = boto3.client('ssm')
+
+          table_answers = dynamodb.Table('quiz_answers')
+          table_quiz_data = dynamodb.Table('quiz_data')
+          table_players_score = dynamodb.Table('players_scores')
+
+          # Retrieve the SNS topic ARN from Parameter Store
+          def get_sns_topic_arn():
+              try:
+                  response = ssm.get_parameter(Name='/NotifyScore/TopicArn', WithDecryption=True)
+                  return response['Parameter']['Value']
+              except ClientError as e:
+                  print(f"Error retrieving parameter: {e}")
+                  return None
+              
+          sns_topic_arn = get_sns_topic_arn()
+
+          def handler(event, context):
+              try:
+                  # Extract the SNS message
+                  sns_message = json.loads(event['Records'][0]['Sns']['Message'])
+                  quiz_id = sns_message.get('quiz_id')
+                  question_number = sns_message.get('question_number')
+
+                  # Step 1: Retrieve answers from the quiz_answers table
+                  response_answers = table_answers.get_item(
+                      Key={
+                          'quiz_id': quiz_id,
+                          'question_number': question_number
+                      }
+                  )
+                  
+                  if 'Item' not in response_answers:
+                      print(f"No answers found for quiz_id: {quiz_id}, question_number: {question_number}")
+                      return
+                  
+                  answers_list = response_answers['Item'].get('answers', [])
+
+                  # Step 2: Retrieve the correct answer from quiz_data table
+                  response_quiz_data = table_quiz_data.get_item(
+                      Key={
+                          'quiz_id': quiz_id
+                      }
+                  )
+
+                  if 'Item' not in response_quiz_data:
+                      print(f"No quiz data found for quiz_id: {quiz_id}")
+                      return
+                  
+                  qz_questions = response_quiz_data['Item'].get('qz_questions', [])
+                  correct_answer = qz_questions[question_number].get('qe_answer')
+
+                  # Step 3: Compare each answer with the correct answer
+                  for answer in answers_list:
+                      player_name = answer['player_name']
+                      player_answer = answer['question_answer']
+
+                      # Award points based on correctness
+                      if player_answer == correct_answer:
+                          player_score = 100
+                      else:
+                          player_score = 60
+
+                      # Step 4: Save the score in the players_score table
+                      # If the player already has a score, add to it
+                      table_players_score.update_item(
+                          Key={
+                              'quiz_id': quiz_id,
+                              'player_name': player_name
+                          },
+                          UpdateExpression="SET player_score = if_not_exists(player_score, :zero) + :score",
+                          ExpressionAttributeValues={
+                              ':zero': 0,
+                              ':score': player_score
+                          }
+                      )
+
+                  print(f"Scores successfully calculated and stored for quiz_id: {quiz_id}, question_number: {question_number}")
+                  
+                  # Send a notification to the SNS topic to show score to players
+                  sns.publish(
+                      TopicArn=sns_topic_arn,
+                      Message=json.dumps({
+                          'quiz_id': quiz_id,
+                          'correct_answer': int(correct_answer)
+                      })
+                  )
+                              
+              except ClientError as e:
+                  print(f"Error retrieving or updating DynamoDB: {e}")
+              except Exception as e:
+                  print(f"Error processing SNS message: {e}")
+
+  # Lambda Notify Player Joined (10)
+  NotifyPlayerJoinedFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-notify-player-joined
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole6.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import json
+          import requests
+          import boto3
+          from botocore.exceptions import ClientError
+
+          ssm = boto3.client('ssm')
+
+          def get_parameter(name):
+              try:
+                  response = ssm.get_parameter(Name=name, WithDecryption=True)
+                  return response['Parameter']['Value']
+              except ClientError as e:
+                  print(f"Error retrieving parameter {name}: {e}")
+                  return None
+
+          # Fetch GraphQL endpoint and API key from SSM Parameter Store
+          GRAPHQL_ENDPOINT = get_parameter('/graphql/APIEndpoint')
+          API_KEY = get_parameter('/graphql/APIKey')
+
+          # Function to call the GraphQL API and publish a message
+          def publish_message(quiz_id, message):
+              query = """
+              mutation PublishMessage($quiz_id: ID!, $message: AWSJSON!) {
+                publishMessage(quiz_id: $quiz_id, message: $message) {
+                  quiz_id
+                  message
+                }
+              }
+              """
+              
+              # Construct the message payload
+              message_payload = {
+                  "message_action": "player_joined"
+              }
+              
+              # GraphQL request payload
+              payload = {
+                  "query": query,
+                  "variables": {
+                      "quiz_id": quiz_id,
+                      "message": json.dumps(message_payload)  # JSON stringified message
+                  }
+              }
+
+              headers = {
+                  "x-api-key": API_KEY,
+                  "Content-Type": "application/json"
+              }
+              
+              # Send the GraphQL mutation request
+              response = requests.post(GRAPHQL_ENDPOINT, json=payload, headers=headers)
+              
+              if response.status_code == 200:
+                  return response.json()
+              else:
+                  raise Exception(f"Error calling GraphQL API: {response.status_code}, {response.text}")
+
+
+          # Lambda function to handle DynamoDB stream events
+          def handler(event, context):
+              for record in event['Records']:
+                  # We are only interested in INSERT or MODIFY events
+                  if record['eventName'] in ['INSERT', 'MODIFY']:
+                      # Extract the quiz_id from the stream event
+                      quiz_id = record['dynamodb']['Keys']['quiz_id']['S']
+                      
+                      # Call the GraphQL API to publish a message
+                      try:
+                          response = publish_message(quiz_id, {"message_action": "player_joined"})
+                          print(f"Message published successfully: {response}")
+                      except Exception as e:
+                          print(f"Error publishing message: {str(e)}")
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Function executed successfully')
+              }
+
+  # Lambda Execution Role
+  LambdaExecutionRole6:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lambda-qz-role-6
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - lambda.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: ssm-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:ListStreams
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                Resource: '*'
+        - PolicyName: appsync-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Allow network access for making HTTP requests to external APIs
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                Resource: '*'
+
+  # Lambda Notify Score (11)
+  NotifyScoreFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: lambda-qz-notify-score
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole6.Arn
+      ReservedConcurrentExecutions: 50
+      Code:
+        ZipFile: |
+          import json
+          import requests
+          import boto3
+          from botocore.exceptions import ClientError
+          from decimal import Decimal
+
+          dynamodb = boto3.resource('dynamodb')
+          ssm = boto3.client('ssm')
+          table_players_score = dynamodb.Table('players_scores')
+
+          def get_parameter(name):
+              try:
+                  response = ssm.get_parameter(Name=name, WithDecryption=True)
+                  return response['Parameter']['Value']
+              except ClientError as e:
+                  print(f"Error retrieving parameter {name}: {e}")
+                  return None
+
+          # Fetch GraphQL endpoint and API key from SSM Parameter Store
+          GRAPHQL_ENDPOINT = get_parameter('/graphql/APIEndpoint')
+          API_KEY = get_parameter('/graphql/APIKey')
+
+          # Function to call the GraphQL API and publish a message
+          def publish_message(quiz_id, message):
+              query = """
+              mutation PublishMessage($quiz_id: ID!, $message: AWSJSON!) {
+                publishMessage(quiz_id: $quiz_id, message: $message) {
+                  quiz_id
+                  message
+                }
+              }
+              """
+              
+              # GraphQL request payload
+              payload = {
+                  "query": query,
+                  "variables": {
+                      "quiz_id": quiz_id,
+                      "message": json.dumps(message)  # JSON stringified message
+                  }
+              }
+
+              headers = {
+                  "x-api-key": API_KEY,
+                  "Content-Type": "application/json"
+              }
+              
+              # Send the GraphQL mutation request
+              response = requests.post(GRAPHQL_ENDPOINT, json=payload, headers=headers)
+              
+              if response.status_code == 200:
+                  return response.json()
+              else:
+                  raise Exception(f"Error calling GraphQL API: {response.status_code}, {response.text}")
+
+          def handler(event, context):
+              
+              # Extract the SNS message
+              sns_message = json.loads(event['Records'][0]['Sns']['Message'])
+              quiz_id = sns_message.get('quiz_id')
+              correct_answer = sns_message.get('correct_answer')
+              
+              scores_list = query_scores_for_quiz(quiz_id)
+              
+              # Convert Decimal to int or float (if there are fractional parts)
+              for item in scores_list:
+                  if isinstance(item['score'], Decimal):
+                      item['score'] = int(item['score'])
+              
+              score_object = {"message_action": "show_scores", "correct_answer": correct_answer, "scores": scores_list}
+              
+              # Call the GraphQL API to publish a message
+              try:
+                  response = publish_message(quiz_id, score_object)
+                  print(f"Message published successfully: {response}")
+              except Exception as e:
+                  print(f"Error publishing message: {str(e)}")
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Function executed successfully')
+              }
+              
+          def query_scores_for_quiz(quiz_id):
+              try:
+                  # Step 1: Query the players_score table for the given quiz_id
+                  response = table_players_score.query(
+                      KeyConditionExpression=boto3.dynamodb.conditions.Key('quiz_id').eq(quiz_id)
+                  )
+
+                  # Step 2: Process the response and create an array of {player, score} objects
+                  scores_list = []
+                  if 'Items' in response:
+                      for item in response['Items']:
+                          player = item['player_name']
+                          score = item['player_score']
+                          scores_list.append({
+                              "player": player,
+                              "score": score
+                          })
+                  
+                  return scores_list
+
+              except ClientError as e:
+                  print(f"Error querying players_score: {e}")
+                  return None
+  
+  #DynamoDB tables
+  QuizDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "quiz_data"
+      AttributeDefinitions:
+        - AttributeName: "quiz_id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "quiz_id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: "KMS"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+  
+  QuizPlayersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "quiz_players"
+      AttributeDefinitions:
+        - AttributeName: "quiz_id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "quiz_id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: "KMS"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      StreamSpecification:
+        StreamViewType: KEYS_ONLY
+  
+  QuizAnswersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "quiz_answers"
+      AttributeDefinitions:
+        - AttributeName: "quiz_id"
+          AttributeType: "S"
+        - AttributeName: "question_number"
+          AttributeType: "N"
+      KeySchema:
+        - AttributeName: "quiz_id"
+          KeyType: "HASH"
+        - AttributeName: "question_number"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: "KMS"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  PlayersScoresTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "players_scores"
+      AttributeDefinitions:
+        - AttributeName: "quiz_id"
+          AttributeType: "S"
+        - AttributeName: "player_name"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "quiz_id"
+          KeyType: "HASH"
+        - AttributeName: "player_name"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: "KMS"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # AppSync GraphQL API
+  QuizAppSyncAPI:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: "QuizAppSyncAPI"
+      AuthenticationType: API_KEY
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AWS_IAM
+  
+  QuizGraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      Definition: |
+        type Message {
+          quiz_id: ID!
+          message: AWSJSON!
+        }
+
+        type Player {
+          player_id: ID!
+          player_name: String!
+          quiz_id: ID!
+        }
+
+        type Quiz {
+          quiz_id: ID!
+          quiz_name: String!
+        }
+
+        type Mutation {
+          addPlayer(player_name: String!, quiz_id: ID!): Player!
+          publishMessage(quiz_id: ID!, message: AWSJSON!): Message!
+        }
+
+        type Query {
+          getPlayersByQuiz(quiz_id: ID!): Int
+        }
+
+        type Subscription {
+          onMessage(quiz_id: ID!): Message!
+            @aws_subscribe(mutations: ["publishMessage"])
+        }
+
+  AddPlayerDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      Name: "AddPlayerDataSource"
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt AddPlayerFunction.Arn
+      ServiceRoleArn: !GetAtt AppSyncLambdaRole.Arn
+
+  PublishMessageDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      Name: "PublishMessageDataSource"
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt PublishMessageFunction.Arn
+      ServiceRoleArn: !GetAtt AppSyncLambdaRole.Arn
+
+  GetPlayersByQuizDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      Name: "GetPlayersByQuizDataSource"
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt GetPlayersByQuizFunction.Arn
+      ServiceRoleArn: !GetAtt AppSyncLambdaRole.Arn
+
+  OnMessageDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      Name: "OnMessageDataSource"
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt OnMessageFunction.Arn
+      ServiceRoleArn: !GetAtt AppSyncLambdaRole.Arn
+
+  AddPlayerResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      TypeName: 'Mutation'
+      FieldName: 'addPlayer'
+      DataSourceName: 'AddPlayerDataSource'
+      Kind: UNIT
+      Runtime:
+        Name: APPSYNC_JS
+        RuntimeVersion: '1.0.0'
+      Code: |
+        import { util } from '@aws-appsync/utils';
+
+        /**
+        * Sends a request to a Lambda function. Passes all information about the request from the `info` object.
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {import('@aws-appsync/utils').LambdaRequest} the request
+        */
+        export function request(ctx) {
+            return {
+                operation: 'Invoke',
+                payload: {
+                    fieldName: ctx.info.fieldName,
+                    parentTypeName: ctx.info.parentTypeName,
+                    variables: ctx.info.variables,
+                    selectionSetList: ctx.info.selectionSetList,
+                    selectionSetGraphQL: ctx.info.selectionSetGraphQL,
+                },
+            };
+        }
+
+        /**
+        * Process a Lambda function response
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {*} the Lambda function response
+        */
+        export function response(ctx) {
+            const { result, error } = ctx;
+            if (error) {
+                util.error(error.message, error.type, result);
+            }
+            return result;
+        }
+    DependsOn: AddPlayerDataSource
+
+  PublishMessageResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      TypeName: 'Mutation'
+      FieldName: 'publishMessage'
+      DataSourceName: 'PublishMessageDataSource'
+      Kind: UNIT
+      Runtime:
+        Name: APPSYNC_JS
+        RuntimeVersion: '1.0.0'
+      Code: |
+        import { util } from '@aws-appsync/utils';
+
+        /**
+        * Sends a request to a Lambda function. Passes all information about the request from the `info` object.
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {import('@aws-appsync/utils').LambdaRequest} the request
+        */
+        export function request(ctx) {
+            return {
+                operation: 'Invoke',
+                payload: {
+                    fieldName: ctx.info.fieldName,
+                    parentTypeName: ctx.info.parentTypeName,
+                    variables: ctx.info.variables,
+                    selectionSetList: ctx.info.selectionSetList,
+                    selectionSetGraphQL: ctx.info.selectionSetGraphQL,
+                },
+            };
+        }
+
+        /**
+        * Process a Lambda function response
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {*} the Lambda function response
+        */
+        export function response(ctx) {
+            const { result, error } = ctx;
+            if (error) {
+                util.error(error.message, error.type, result);
+            }
+            return result;
+        }
+    DependsOn: PublishMessageDataSource
+
+  GetPlayersByQuizResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      TypeName: 'Query'
+      FieldName: 'getPlayersByQuiz'
+      DataSourceName: 'GetPlayersByQuizDataSource'
+      Kind: UNIT
+      Runtime:
+        Name: APPSYNC_JS
+        RuntimeVersion: '1.0.0'
+      Code: |
+        import { util } from '@aws-appsync/utils';
+
+        /**
+        * Sends a request to a Lambda function. Passes all information about the request from the `info` object.
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {import('@aws-appsync/utils').LambdaRequest} the request
+        */
+        export function request(ctx) {
+            return {
+                operation: 'Invoke',
+                payload: {
+                    fieldName: ctx.info.fieldName,
+                    parentTypeName: ctx.info.parentTypeName,
+                    variables: ctx.info.variables,
+                    selectionSetList: ctx.info.selectionSetList,
+                    selectionSetGraphQL: ctx.info.selectionSetGraphQL,
+                },
+            };
+        }
+
+        /**
+        * Process a Lambda function response
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {*} the Lambda function response
+        */
+        export function response(ctx) {
+            const { result, error } = ctx;
+            if (error) {
+                util.error(error.message, error.type, result);
+            }
+            return result;
+        }
+    DependsOn: GetPlayersByQuizDataSource
+
+  OnMessageResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      TypeName: 'Subscription'
+      FieldName: 'onMessage'
+      DataSourceName: 'OnMessageDataSource'
+      Kind: UNIT
+      Runtime:
+        Name: APPSYNC_JS
+        RuntimeVersion: '1.0.0'
+      Code: |
+        import { util } from '@aws-appsync/utils';
+
+        /**
+        * Sends a request to a Lambda function. Passes all information about the request from the `info` object.
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {import('@aws-appsync/utils').LambdaRequest} the request
+        */
+        export function request(ctx) {
+            return {
+                operation: 'Invoke',
+                payload: {
+                    fieldName: ctx.info.fieldName,
+                    parentTypeName: ctx.info.parentTypeName,
+                    variables: ctx.info.variables,
+                    selectionSetList: ctx.info.selectionSetList,
+                    selectionSetGraphQL: ctx.info.selectionSetGraphQL,
+                },
+            };
+        }
+
+        /**
+        * Process a Lambda function response
+        * @param {import('@aws-appsync/utils').Context} ctx the context
+        * @returns {*} the Lambda function response
+        */
+        export function response(ctx) {
+            const { result, error } = ctx;
+            if (error) {
+                util.error(error.message, error.type, result);
+            }
+            return result;
+        }
+    DependsOn: OnMessageDataSource
+
+  AppSyncLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: "AppSyncInvokeLambda"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AddPlayerFunction.Arn
+                  - !GetAtt PublishMessageFunction.Arn
+                  - !GetAtt GetPlayersByQuizFunction.Arn
+                  - !GetAtt OnMessageFunction.Arn
+
+  QuizApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt QuizAppSyncAPI.ApiId
+      Description: "API Key for Quiz AppSync API"
+      Expires: 1761983624
+
+  GraphQLApiEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /graphql/APIEndpoint
+      Type: String
+      Value: !GetAtt QuizAppSyncAPI.GraphQLUrl
+      Description: "The GraphQL API endpoint for Quiz API"
+
+  GraphQLApiKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /graphql/APIKey
+      Type: String
+      Value: !GetAtt QuizApiKey.ApiKey
+      Description: "The GraphQL API Key for Quiz API"
+
+  # SNS
+  CalculateScoreTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: CalculateScore
+
+  CalculateScoreParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /CalculateScore/TopicArn
+      Type: String
+      Value: !Ref CalculateScoreTopic
+      Description: "ARN of the CalculateScore SNS Topic"
+    UpdateReplacePolicy: Retain
+  
+  CalculateScoreSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref CalculateScoreTopic
+      Protocol: lambda
+      Endpoint: !GetAtt CalculateScoreFunction.Arn
+
+  CalculateScoreFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CalculateScoreFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref CalculateScoreTopic
+
+  NotifyScoreTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: NotifyScore
+
+  NotifyScoreParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NotifyScore/TopicArn
+      Type: String
+      Value: !Ref NotifyScoreTopic
+      Description: "ARN of the NotifyScore SNS Topic"
+    UpdateReplacePolicy: Retain
+
+  NotifyScoreSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotifyScoreTopic
+      Protocol: lambda
+      Endpoint: !GetAtt NotifyScoreFunction.Arn
+
+  NotifyScoreFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref NotifyScoreFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref NotifyScoreTopic
+
+  # SQS
+  AnswersQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "AnswersQueue"
+      VisibilityTimeout: 60
+      DelaySeconds: 0
+
+  # Event source mapping for SQS to Lambda
+  SQSTriggerForLambda:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt AnswersQueue.Arn
+      FunctionName: !Ref HandleAnswersFunction  
+      BatchSize: 10 
+      Enabled: true
+
+  # DynamoDB Stream event source for DDB to Lambda
+  QuizPlayersStreamEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      StartingPosition: LATEST
+      Enabled: true
+      EventSourceArn: !GetAtt QuizPlayersTable.StreamArn
+      FunctionName: !Ref NotifyPlayerJoinedFunction
+
+Outputs:
+  ApiEndpoint:
+    Description: "The endpoint for the API Gateway"
+    Value: !Sub "https://${QzApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+    Export:
+      Name: "QuizAPI-REST-Endpoint"
+  GraphQLEndpoint:
+    Description: "GraphQL Endpoint for the Quiz API"
+    Value: !GetAtt QuizAppSyncAPI.GraphQLUrl
+    Export:
+      Name: "QuizAPI-GraphQL-Endpoint"
+  GraphQLApiKey:
+    Description: "API Key for the Quiz API"
+    Value: !GetAtt QuizApiKey.ApiKey
+    Export:
+      Name: "QuizAPI-GraphQL-ApiKey"

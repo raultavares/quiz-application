@@ -2,7 +2,7 @@
 
 This project consists of two separate applications: qz-host (for quiz hosts) and qz-player (for quiz participants).
 
-## qz-host
+## Steps to Install and Test it
 
 ### Description
 qz-host is a React-based web application designed for quiz hosts to create, manage, and present quizzes.

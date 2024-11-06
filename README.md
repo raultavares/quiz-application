@@ -17,23 +17,42 @@ qz-host is a React-based web application designed for quiz hosts to create, mana
 
 1. Clone the repository
 
-2. Run the CloudFormation Template in your AWS Account
+2. Run the CloudFormation Template quiz-application-cf-template.yaml in your AWS Account
 
-3. Navigate to the qz-host directory:
+### Installation (Host)
+1. Navigate to the qz-host directory:
 cd qz-host
 
-4. Install dependencies:
+2. Install dependencies:
 npm install
 
-5. Create a .env file in the root of the qz-host directory and add the necessary environment variables below:
+3. Create a .env file in the root of the qz-host directory and add the necessary environment variables below:
+PORT=9000
+REACT_APP_GRAPHQL_KEY=THE KEY COPIED FROM OUTPUTS TAB 
+REACT_APP_GRAPHQL_ENDPOINT=THE GRAPHQL API COPIED FROM OUTPUTS TAB
+REACT_APP_GRAPHQL_REGION=us-east-1
+REACT_APP_API_GATEWAY_PREFIX_ENDPOINT=THE API GATEWAY COPIED FROM OUTPUTS TAB
 
-### Usage
-
-To start the development server:
+4. Start the Application
 npm start
 
-To build for production:
-npm run build
+
+### Installation (Host)
+1. Navigate to the qz-host directory:
+cd qz-player
+
+2. Install dependencies:
+npm install
+
+3. Create a .env file in the root of the qz-host directory and add the necessary environment variables below:
+PORT=9001
+REACT_APP_GRAPHQL_KEY=THE KEY COPIED FROM OUTPUTS TAB 
+REACT_APP_GRAPHQL_ENDPOINT=THE GRAPHQL API COPIED FROM OUTPUTS TAB
+REACT_APP_GRAPHQL_REGION=us-east-1
+REACT_APP_API_GATEWAY_PREFIX_ENDPOINT=THE API GATEWAY COPIED FROM OUTPUTS TAB
+
+4. Start the Application
+npm start
 
 ### Main Dependencies
 - React 18.3.1

@@ -5,7 +5,7 @@ Visit this [Blog Post](https://oraultavares.medium.com/using-generative-ai-react
 
 ![Quiz Application Logo](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*a0-hpNMUMm_-MOd3mGypaw.jpeg)
 
-## Steps to Install and Test it
+## Usage Steps
 
 ### Description
 qz-host is a React-based web application designed for quiz hosts to create, manage, and present quizzes.

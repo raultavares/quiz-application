@@ -1,0 +1,55 @@
+.carousel-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    width: 100%;
+    margin: 20px auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-content {
+    width: 100%;
+    text-align: left;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.question {
+    margin-bottom: 10px;
+}
+
+.alternatives {
+    list-style-type: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+.alternatives li {
+    font-size: 20px;
+    line-height: 40px;
+}
+
+.button-container {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.back-button, .play-button, .forward-button {
+    cursor: pointer;
+}
+
+.play-button :hover {
+    color: #86be1b;
+}
+
+.back-button :hover, .forward-button :hover {
+    color: #ffb130;
+}

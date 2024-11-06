@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@200..800&display=swap');
+
+html {
+  background-image: url('../public/img/doodle_background.png');
+}
+
+body {
+  margin: 0;
+  font-family: "Oxanium", serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+#root {
+  margin-top: 40px;
+}
+
+
+/* CUSTOM CSS */
+
+.logo {
+  margin: 50px auto 50px;
+  width: 400px;
+}
+
+.logo img {
+  width: 100%;
+}
+
+.welcome-text {
+  margin: 0 auto;
+  width: 640px;
+  text-align: center;
+}
+
+.sidebar a {
+  color: black;
+  text-decoration: none;
+}
+
+.create-quiz-container {
+  width: 500px;
+  margin: 0 auto 30px;
+  background: #f6f6f6;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0px 1px 20px #dbdbdb;
+  padding: 20px;
+}
+
+.create-quiz-container textarea {
+  resize: none;
+  border: none;
+  width: 100%;
+  height: 100px;
+  background: #ffffff;
+  border: 1px solid #e7e7e7;
+  border-radius: 5px;
+}
+
+.create-quiz-container select {
+  width: 100%;
+    height: 50px;
+    font-size: 15px;
+    padding: 0 10px;
+    border: 1px solid #e7e7e7;
+    border-radius: 5px;
+}
+
+.create-quiz-container input[type="number"] {
+  width: 50px;
+    height: 50px;
+    border: 1px solid #e7e7e7;
+    border-radius: 5px;
+    padding: 0 10px;
+}
+
+.create-quiz-container .gen-quiz-button {
+  width: 100%;
+    height: 50px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.create-quiz-container .clear-info {
+  width: 100%;
+  height: 50px;
+  background: white;
+}
+
+.card-quiz-container {
+  width: 640px;
+  overflow: hidden;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.card-quiz-questions {
+  width: 98%;
+  margin: 10px;
+  min-height: 250px;
+  text-align: left;
+  box-shadow: none !important;
+  border: 1px dotted #c9c9c9;
+}
+
+
+.present-quiz-container {
+  width: 840px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.present-quiz-search input {
+  border: 1px solid #dddddd;
+  height: 55px;
+  padding-left: 20px;
+  width: 30%;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 25px;
+}
+
+.present-quiz-search button {
+  background: #e52626;
+  border: none;
+  border-radius: 20px;
+  height: 45px;
+  color: white;
+  margin-left: -73px;
+  line-height: 47px;
+  font-weight: bold;
+  padding: 0 20px;
+  cursor: pointer;
+}

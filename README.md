@@ -1,6 +1,6 @@
 # Quiz Application
 
-This project consists of two separate applications: qz-host (for quiz hosts) and qz-player (for quiz participants). <br>
+This project consists of two separate applications: qz-host (for quiz hosts) and qz-player (for quiz participants). <br><br>
 Visit this [Blog Post](https://oraultavares.medium.com/using-generative-ai-react-and-serverless-to-create-a-fun-and-interactive-quiz-game-application-9b77ec61cc8b) for detailed installation/usage instructions.
 
 ## Steps to Install and Test it

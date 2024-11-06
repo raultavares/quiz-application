@@ -1,6 +1,6 @@
 # Quiz Application
 
-This project consists of two separate applications: qz-host (for quiz hosts) and qz-player (for quiz participants).
+This project consists of two separate applications: qz-host (for quiz hosts) and qz-player (for quiz participants). Visit this [Blog Post](https://oraultavares.medium.com/using-generative-ai-react-and-serverless-to-create-a-fun-and-interactive-quiz-game-application-9b77ec61cc8b) for detailed instructions.
 
 ## Steps to Install and Test it
 
@@ -27,11 +27,13 @@ cd qz-host
 npm install
 
 3. Create a .env file in the root of the qz-host directory and add the necessary environment variables below:
+```
 PORT=9000<br>
 REACT_APP_GRAPHQL_KEY=THE KEY COPIED FROM OUTPUTS TAB<br>
 REACT_APP_GRAPHQL_ENDPOINT=THE GRAPHQL API COPIED FROM OUTPUTS TAB<br>
 REACT_APP_GRAPHQL_REGION=us-east-1<br>
 REACT_APP_API_GATEWAY_PREFIX_ENDPOINT=THE API GATEWAY COPIED FROM OUTPUTS TAB<br>
+```
 
 4. Start the Application
 npm start
@@ -45,11 +47,13 @@ cd qz-player
 npm install
 
 3. Create a .env file in the root of the qz-host directory and add the necessary environment variables below:
-PORT=9001
-REACT_APP_GRAPHQL_KEY=THE KEY COPIED FROM OUTPUTS TAB 
-REACT_APP_GRAPHQL_ENDPOINT=THE GRAPHQL API COPIED FROM OUTPUTS TAB
-REACT_APP_GRAPHQL_REGION=us-east-1
-REACT_APP_API_GATEWAY_PREFIX_ENDPOINT=THE API GATEWAY COPIED FROM OUTPUTS TAB
+```
+PORT=9001<br>
+REACT_APP_GRAPHQL_KEY=THE KEY COPIED FROM OUTPUTS TAB<br>
+REACT_APP_GRAPHQL_ENDPOINT=THE GRAPHQL API COPIED FROM OUTPUTS TAB<br>
+REACT_APP_GRAPHQL_REGION=us-east-1<br>
+REACT_APP_API_GATEWAY_PREFIX_ENDPOINT=THE API GATEWAY COPIED FROM OUTPUTS TAB<br>
+```
 
 4. Start the Application
 npm start

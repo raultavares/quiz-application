@@ -3,6 +3,8 @@
 This project consists of two separate applications: qz-host (for quiz hosts) and qz-player (for quiz participants). <br><br>
 Visit this [Blog Post](https://oraultavares.medium.com/using-generative-ai-react-and-serverless-to-create-a-fun-and-interactive-quiz-game-application-9b77ec61cc8b) for detailed installation/usage instructions.
 
+!(https://miro.medium.com/v2/resize:fit:1400/format:webp/1*a0-hpNMUMm_-MOd3mGypaw.jpeg)
+
 ## Steps to Install and Test it
 
 ### Description
